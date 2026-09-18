@@ -273,7 +273,11 @@ def _deliver(view, pix):
 
 
 def _grab(view, rect=None):
-    pix = view.grab()
+    try:
+        pix = view.grab()
+    except RuntimeError:
+        tooltip("Screenshot failed: the view was closed")
+        return
     if rect and not pix.isNull():
         scale = pix.devicePixelRatio() * view.zoomFactor()
         crop = QRect(
@@ -290,14 +294,22 @@ class _Picker:
     def __init__(self, view):
         self.view = view
         self.deadline = time.time() + PICKER_TIMEOUT_S
-        self.timer = QTimer(view)
+        # Parented to mw, not the view: if Anki destroys the view mid-pick the
+        # poll must keep running to notice and clear `active`.
+        self.timer = QTimer(mw)
         self.timer.timeout.connect(self._poll)
         view.page().runJavaScript(PICKER_JS)
         self.timer.start(POLL_MS)
         _Picker.active = self
 
     def cancel(self):
-        self.view.page().runJavaScript("window.__ws && window.__ws.cancel()")
+        """Close the picker in the page. False if the view no longer exists."""
+        try:
+            self.view.page().runJavaScript("window.__ws && window.__ws.cancel()")
+            return True
+        except RuntimeError:
+            self._done()
+            return False
 
     def _poll(self):
         if time.time() > self.deadline:
@@ -318,7 +330,10 @@ class _Picker:
         if not result:
             return
         self._done()
-        self.view.page().runJavaScript("delete window.__ws")
+        try:
+            self.view.page().runJavaScript("delete window.__ws")
+        except RuntimeError:
+            return
         mode = result.get("mode")
         if mode == "rect":
             QTimer.singleShot(GRAB_DELAY_MS, lambda: _grab(self.view, result["rect"]))
@@ -333,8 +348,7 @@ class _Picker:
 
 
 def start_picker():
-    if _Picker.active:
-        _Picker.active.cancel()
+    if _Picker.active and _Picker.active.cancel():
         return
     view = _target_view()
     if view is None:
