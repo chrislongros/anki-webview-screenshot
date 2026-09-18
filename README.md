@@ -3,6 +3,11 @@
 Firefox-style screenshots of any Anki web view: the reviewer, the card browser
 preview, the card layout preview, and add-on panels such as AMBOSS.
 
+## Install
+
+In Anki, open Tools > Add-ons > Get Add-ons and enter the code **171106637**,
+or visit the [AnkiWeb page](https://ankiweb.net/shared/info/171106637).
+
 ## Usage
 
 Press **Ctrl+Shift+S** (Cmd+Shift+S on macOS) with the pointer or keyboard
